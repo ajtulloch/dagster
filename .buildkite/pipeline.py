@@ -19,10 +19,10 @@ SupportedPythons = [
 ]
 
 IMAGE_MAP = {
-    SupportedPython.V3_7: "python:3.7",
-    SupportedPython.V3_6: "python:3.6",
-    SupportedPython.V3_5: "python:3.5",
-    SupportedPython.V2_7: "python:2.7",
+    SupportedPython.V3_7: "dagster/buildkite-python:3.7.3",
+    SupportedPython.V3_6: "dagster/buildkite-python:3.6.8",
+    SupportedPython.V3_5: "dagster/buildkite-python:3.5.7",
+    SupportedPython.V2_7: "dagster/buildkite-python:2.7.16",
 }
 
 TOX_MAP = {
@@ -45,7 +45,7 @@ class StepBuilder:
         if img in IMAGE_MAP:
             img = IMAGE_MAP[img]
 
-        docker = {"image": img}
+        docker = {"image": img, "volumes": ["/var/run/docker.sock:/var/run/docker.sock"]}
         if env:
             docker['environment'] = env
 
@@ -87,6 +87,31 @@ def python_modules_tox_tests(directory, prereqs=None):
     return tests
 
 
+def airline_demo_tests():
+    tests = []
+    version = SupportedPython.V3_5
+    coverage = ".coverage.airline-demo.{version}.$BUILDKITE_BUILD_ID".format(version=version)
+    tests.append(
+        StepBuilder('airline demo')
+        .run(
+            "cd examples/airline-demo",
+            "./build.sh",
+            "mkdir -p /home/circleci/airflow",
+            "docker ps",
+            "docker-compose up -d",
+            "pip install tox",
+            "apt-get update",
+            "apt-get install libpq-dev",
+            "tox -e {ver}".format(ver=TOX_MAP[version]),
+            "mv .coverage {file}".format(file=coverage),
+            "buildkite-agent artifact upload {file}".format(file=coverage),
+        )
+        .on_docker_image(version)
+        .build()
+    )
+    return tests
+
+
 if __name__ == "__main__":
     steps = [
         StepBuilder("pylint")
@@ -124,7 +149,7 @@ if __name__ == "__main__":
             "yarn generate-types",
             "git diff --exit-code",
         )
-        .on_docker_image("nikolaik/python-nodejs:python3.7-nodejs11")
+        .on_docker_image("dagster/buildkite-pynode")
         .build(),
     ]
     steps += python_modules_tox_tests("dagster")
@@ -155,5 +180,8 @@ if __name__ == "__main__":
         )
         .build(),
     ]
+
+    # testing single step
+    steps = airline_demo_tests()
 
     print(yaml.dump({"steps": steps}, default_flow_style=False, default_style="|"))
