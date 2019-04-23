@@ -4,9 +4,9 @@
 
 pip install --upgrade pip
 
-cp -R ../dagster . && \
-cp -R ../dagster-graphql . && \
-cp -R ../dagstermill . && \
+cp -R ../../python_modules/dagster . && \
+cp -R ../../python_modules/dagster-graphql . && \
+cp -R ../../python_modules/dagstermill . && \
 \
 rm -rf dagster/.tox && \
 rm -rf dagster-graphql/.tox && \
