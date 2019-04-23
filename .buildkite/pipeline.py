@@ -87,6 +87,32 @@ def python_modules_tox_tests(directory, prereqs=None):
     return tests
 
 
+def airline_demo_tests():
+    tests = []
+    version = SupportedPython.V3_5
+    coverage = ".coverage.airline-demo.{version}.$BUILDKITE_BUILD_ID".format(version=version)
+    tests.append(
+        StepBuilder('airline demo')
+        .run(
+            "cd examples/airline-demo",
+            ". build.sh",
+            "mkdir -p /home/circleci/airflow",
+            "docker-compose up -d",
+            "pyenv global 3.5.2",
+            "pip install -U 'pip<19.0'",  # see: https://github.com/pypa/pip/issues/6163
+            "pip install tox",
+            "apt-get update",
+            "apt-get install libpq-dev",
+            "tox -e {ver}".format(ver=TOX_MAP[version]),
+            "mv .coverage {file}".format(file=coverage),
+            "buildkite-agent artifact upload {file}".format(file=coverage),
+        )
+        .on_docker_image(version)
+        .build()
+    )
+    return tests
+
+
 if __name__ == "__main__":
     steps = [
         StepBuilder("pylint")
@@ -155,5 +181,8 @@ if __name__ == "__main__":
         )
         .build(),
     ]
+
+    # testing single step
+    steps = airline_demo_tests()
 
     print(yaml.dump({"steps": steps}, default_flow_style=False, default_style="|"))
